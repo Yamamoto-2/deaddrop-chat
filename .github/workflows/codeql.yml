@@ -1,0 +1,50 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "27 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: go
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # Go is build-mode: manual — compile every package so CodeQL can trace it.
+      # The root package embeds web/dist, so a stub satisfies the go:embed.
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - if: matrix.language == 'go'
+        run: |
+          mkdir -p web/dist
+          echo '<!doctype html>' > web/dist/index.html
+          go build ./...
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

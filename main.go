@@ -17,6 +17,9 @@ import (
 	"deaddrop/internal/ws"
 )
 
+// version is stamped at release time via -ldflags "-X main.version=...".
+var version = "dev"
+
 func getenv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -48,7 +51,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("DeadDrop listening on :%s (max frame %d bytes)", port, maxFrame)
+		log.Printf("DeadDrop %s listening on :%s (max frame %d bytes)", version, port, maxFrame)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server error: %v", err)
 		}
