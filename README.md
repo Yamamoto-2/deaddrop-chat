@@ -4,7 +4,12 @@ Anonymous, ephemeral, end-to-end-encrypted chat. The server is a blind
 ciphertext relay — a "dead drop": it groups sockets by an opaque routing id and
 fans out messages. No accounts, no persistence, no logs.
 
-> Status: **working MVP**. See the [Security](#security) section for the threat model.
+### ▶ Live demo: **[deaddrop-chat.com](https://deaddrop-chat.com)**
+
+It's a public demo room — anyone can join, so don't send anything sensitive
+there. Spin up your own (one binary or `docker run`) for real use.
+
+> Status: **working MVP**. See [`SECURITY.md`](SECURITY.md) for the honest threat model.
 
 ## Features
 
