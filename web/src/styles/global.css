@@ -1,0 +1,660 @@
+@layer base, utils, components;
+
+@import "@webtui/css/base.css";
+@import "@webtui/css/utils/box.css";
+@import "@webtui/css/components/button.css";
+@import "@webtui/css/components/input.css";
+@import "@webtui/css/components/typography.css";
+
+/* DeadDrop dark theme: override WebTUI's built-in `dark` palette.
+   (These rules sit outside @layer, so they win over WebTUI's component CSS.) */
+:root[data-webtui-theme="dark"] {
+  --background0: #0b0d0c;
+  --background1: #141716;
+  --background2: #1e2220;
+  --background3: #2b302d;
+  --foreground0: #d7e0da;
+  --foreground1: #9fb0a6;
+  --foreground2: #5f6f66;
+  --dd-accent: #5fd7a7;
+  --dd-danger: #ff6b6b;
+  --box-border-color: var(--background3);
+  --font-size: 15px;
+}
+
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #000;
+}
+
+/* Visible keyboard focus (only on keyboard nav, not mouse). WebTUI's base
+   sets `outline: none` on everything; this un-layered rule restores it. */
+:focus-visible {
+  outline: 2px solid var(--dd-accent);
+  outline-offset: 2px;
+}
+.dd-swatch:focus-visible {
+  outline-offset: 1px;
+}
+
+/* The whole app is one terminal window: a centered, bordered panel. */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 960px;
+  margin: 0 auto;
+  border-left: 1px solid var(--background2);
+  border-right: 1px solid var(--background2);
+  background: var(--background0);
+  position: relative;
+}
+
+/* Inputs as terminal entry lines: no filled box, just a baseline underline. */
+input[type="text"],
+input[type="password"],
+input:not([type]) {
+  background: transparent;
+  border-bottom: 1px solid var(--background3);
+  padding: 0;
+  height: 1.4lh;
+}
+input[type="text"]:focus,
+input[type="password"]:focus,
+input:not([type]):focus {
+  border-bottom-color: var(--dd-accent);
+}
+
+.dd-dim {
+  color: var(--foreground2);
+}
+.dd-sep {
+  color: var(--background3);
+}
+
+/* ---- shared controls ---- */
+.dd-send {
+  background: var(--dd-accent);
+  background-image: none;
+  color: var(--background0);
+  height: 1.7lh;
+  min-width: 0;
+  padding: 0 2ch;
+  border: none;
+  cursor: pointer;
+  font-weight: var(--font-weight-bold);
+}
+.dd-send:hover {
+  filter: brightness(1.1);
+}
+/* text-style control: no box, terminal-link feel */
+.dd-link {
+  background: none;
+  background-image: none;
+  border: none;
+  color: var(--foreground2);
+  cursor: pointer;
+  padding: 0;
+  height: auto;
+  min-width: 0;
+}
+.dd-link::before {
+  content: "[ ";
+}
+.dd-link::after {
+  content: " ]";
+}
+.dd-link:hover {
+  color: var(--dd-accent);
+}
+
+/* ---- Identity editor (name + color) ---- */
+.dd-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5lh;
+}
+.dd-id-row {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+}
+.dd-nick-input {
+  flex: 1;
+  min-width: 0;
+}
+.dd-mini {
+  background: transparent;
+  background-image: none;
+  color: var(--foreground1);
+  border: 1px solid var(--background3);
+  padding: 0 1ch;
+  height: 1.5lh;
+  min-width: 0;
+  cursor: pointer;
+}
+.dd-mini:hover {
+  color: var(--dd-accent);
+  border-color: var(--dd-accent);
+}
+.dd-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5ch;
+}
+.dd-swatch {
+  width: 2.5ch;
+  height: 1.2lh;
+  min-width: 0;
+  padding: 0;
+  background: var(--sw);
+  background-image: none;
+  border: 2px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.dd-swatch.is-on {
+  border-color: var(--foreground0);
+}
+.dd-swatch-row {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+}
+.dd-swatch-row > .dd-swatches {
+  flex: 1;
+}
+
+/* ---- Home ---- */
+.dd-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2ch;
+}
+.dd-login {
+  width: min(460px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9lh;
+}
+.dd-prompt-row {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+}
+.dd-prompt-row > input {
+  flex: 1;
+}
+.dd-action {
+  align-self: flex-start;
+  background: none;
+  background-image: none;
+  border: none;
+  color: var(--dd-accent);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  padding: 0;
+  height: auto;
+  margin-top: 0.3lh;
+}
+.dd-action::before {
+  content: "[ ";
+  color: var(--foreground2);
+}
+.dd-action::after {
+  content: " ]";
+  color: var(--foreground2);
+}
+.dd-action:hover {
+  text-decoration: underline;
+}
+.dd-shuffle {
+  background: none;
+  background-image: none;
+  border: none;
+  color: var(--foreground2);
+  cursor: pointer;
+  padding: 0 0.5ch;
+  height: auto;
+  min-width: 0;
+}
+.dd-shuffle:hover {
+  color: var(--dd-accent);
+}
+.dd-logo {
+  color: var(--dd-accent);
+  letter-spacing: 0.1ch;
+}
+.dd-sub {
+  color: var(--foreground2);
+  margin-top: -0.5lh;
+}
+.dd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25lh;
+}
+.dd-label {
+  color: var(--foreground2);
+  font-size: 0.85em;
+}
+.dd-field > input {
+  width: 100%;
+}
+.dd-hint {
+  color: var(--foreground2);
+  font-size: 0.8em;
+}
+
+/* Copyable `curl <host>/cli | sh` line */
+.dd-cli {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25lh;
+  margin-top: 0.3lh;
+}
+.dd-cli-label {
+  color: var(--foreground2);
+  font-size: 0.85em;
+}
+.dd-cli-row {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+  background: var(--background1);
+  padding: 0.25lh 1ch;
+}
+.dd-cli-cmd {
+  flex: 1;
+  color: var(--dd-accent);
+  word-break: break-all;
+}
+.dd-cli-copy {
+  flex: 0 0 auto;
+  background: none;
+  background-image: none;
+  border: none;
+  color: var(--foreground2);
+  cursor: pointer;
+  padding: 0;
+  height: auto;
+  min-width: 0;
+}
+.dd-cli-copy::before {
+  content: "[ ";
+}
+.dd-cli-copy::after {
+  content: " ]";
+}
+.dd-cli-copy:hover {
+  color: var(--dd-accent);
+}
+
+/* ---- Room: status-line header ---- */
+.dd-header {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+  padding: 0.5lh 2ch;
+  white-space: nowrap;
+}
+
+/* TUI separator: a row of box-drawing chars instead of a CSS hairline. */
+.dd-rule {
+  flex: 0 0 auto;
+  height: 1lh;
+  line-height: 1lh;
+  color: var(--background3);
+  overflow: hidden;
+  white-space: nowrap;
+  user-select: none;
+}
+.dd-rule::after {
+  content: "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────";
+}
+.dd-room {
+  color: var(--dd-accent);
+}
+.dd-spacer {
+  flex: 1;
+}
+.dd-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 1ch;
+}
+.dd-live {
+  color: var(--dd-accent);
+}
+/* identity as plain status-line text */
+.dd-id {
+  background: none;
+  background-image: none;
+  border: none;
+  color: var(--foreground0);
+  cursor: pointer;
+  padding: 0;
+  height: auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6ch;
+}
+.dd-id:hover {
+  text-decoration: underline;
+}
+.dd-dot {
+  width: 1ch;
+  height: 1ch;
+  background: var(--sw);
+  border-radius: 50%;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+/* ---- Room: message log ---- */
+.dd-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5lh 0;
+}
+/* One message = one entry on a uniform line grid (line-height is the only
+   vertical rhythm, so inter-message gaps match wrapped-line gaps). */
+/* 3-column grid so wrapped / newline lines hang-indent under the text, not
+   flush to the far left. Columns: time | nick: | text. */
+.dd-msg {
+  display: grid;
+  grid-template-columns: max-content max-content 1fr;
+  column-gap: 0.8ch;
+  align-items: baseline;
+  padding: 0 2ch;
+  line-height: 1.5;
+}
+.dd-msg:hover {
+  background: var(--background1);
+}
+.dd-time {
+  color: var(--foreground2);
+  font-size: 0.85em;
+}
+.dd-text {
+  color: var(--foreground0);
+  /* normal whitespace: markdown handles line breaks (breaks:true -> <br>), so
+     the trailing "\n" markdown-it emits after each block must NOT render as an
+     extra blank line — that's what broke the uniform CLI-tight row spacing. */
+  white-space: normal;
+  word-break: break-word;
+  min-width: 0;
+  line-height: 1.5;
+}
+
+/* Empty room: invite affordance */
+.dd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5lh;
+  padding: 1lh 2ch;
+}
+.dd-invite-url {
+  color: var(--dd-accent);
+  word-break: break-all;
+}
+
+/* ---- Rendered Markdown inside a message ---- */
+.dd-text > :first-child {
+  margin-top: 0;
+}
+.dd-text > :last-child {
+  margin-bottom: 0;
+}
+.dd-text p {
+  margin: 0;
+}
+.dd-text a {
+  color: var(--dd-accent);
+}
+.dd-text code {
+  background: var(--background2);
+  padding: 0 0.4ch;
+  border-radius: 2px;
+}
+.dd-text pre {
+  background: var(--background1);
+  padding: 0.4lh 1ch;
+  margin: 0.3lh 0;
+  overflow-x: auto;
+}
+.dd-text pre code {
+  background: none;
+  padding: 0;
+}
+.dd-text ul,
+.dd-text ol {
+  margin: 0.2lh 0;
+  padding-left: 3ch;
+}
+.dd-text blockquote {
+  margin: 0.3lh 0;
+  padding-left: 1ch;
+  border-left: 2px solid var(--background3);
+  color: var(--foreground1);
+}
+.dd-text h1,
+.dd-text h2,
+.dd-text h3 {
+  font-size: 1em;
+  margin: 0.3lh 0;
+}
+
+/* Syntax highlighting tokens (highlight.js), mapped to the terminal palette. */
+.dd-text .hljs-comment,
+.dd-text .hljs-quote {
+  color: var(--foreground2);
+  font-style: italic;
+}
+.dd-text .hljs-keyword,
+.dd-text .hljs-selector-tag,
+.dd-text .hljs-built_in,
+.dd-text .hljs-meta {
+  color: #c792ea;
+}
+.dd-text .hljs-string,
+.dd-text .hljs-attr,
+.dd-text .hljs-regexp {
+  color: var(--dd-accent);
+}
+.dd-text .hljs-number,
+.dd-text .hljs-literal {
+  color: #f78c6c;
+}
+.dd-text .hljs-title,
+.dd-text .hljs-section {
+  color: #82aaff;
+}
+.dd-text .hljs-variable,
+.dd-text .hljs-name,
+.dd-text .hljs-attribute {
+  color: #ffcb6b;
+}
+
+/* ---- File attachments ---- */
+.dd-file {
+  background: none;
+  background-image: none;
+  border: none;
+  color: var(--dd-accent);
+  cursor: pointer;
+  padding: 0;
+  height: auto;
+  min-width: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+}
+.dd-file::before {
+  content: "[ ";
+  color: var(--foreground2);
+}
+.dd-file::after {
+  content: " ]";
+  color: var(--foreground2);
+}
+.dd-file:hover {
+  text-decoration: underline;
+}
+.dd-fileinput {
+  display: none;
+}
+.dd-attach {
+  background: none;
+  background-image: none;
+  border: none;
+  color: var(--foreground2);
+  cursor: pointer;
+  padding: 0 0.5ch;
+  min-width: 0;
+  height: auto;
+  font-size: 1.3em;
+  line-height: 1;
+}
+.dd-attach:hover {
+  color: var(--dd-accent);
+}
+.dd-sys {
+  padding: 0.2lh 2ch;
+  color: var(--dd-danger);
+  font-size: 0.9em;
+}
+.dd-log.dd-drop {
+  outline: 2px dashed var(--dd-accent);
+  outline-offset: -4px;
+}
+
+/* hover preview + full overlay for images */
+.dd-preview {
+  position: fixed;
+  z-index: 60;
+  padding: 2px;
+  background: var(--background1);
+  border: 1px solid var(--background3);
+  pointer-events: none;
+}
+.dd-preview-img {
+  display: block;
+  max-width: 320px;
+  max-height: 320px;
+}
+.dd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+.dd-overlay-img {
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+/* ---- Mobile / narrow screens ---- */
+@media (max-width: 640px) {
+  :root[data-webtui-theme="dark"] {
+    --font-size: 14px;
+  }
+  #app {
+    border-left: none;
+    border-right: none;
+    height: 100dvh;
+  }
+  /* header wraps instead of overflowing; drop the spacer so items pack + wrap */
+  .dd-header {
+    flex-wrap: wrap;
+    white-space: normal;
+    gap: 0.25lh 1ch;
+    padding: 0.5lh 1.5ch;
+  }
+  .dd-header .dd-spacer {
+    display: none;
+  }
+  .dd-msg {
+    padding: 0 1.5ch;
+  }
+  .dd-empty,
+  .dd-sys {
+    padding-left: 1.5ch;
+    padding-right: 1.5ch;
+  }
+  .dd-inputbar {
+    padding: 0.5lh 1.5ch 0.75lh;
+  }
+  /* anchor the login near the top so the on-screen keyboard doesn't shove it */
+  .dd-center {
+    align-items: flex-start;
+    padding: 8vh 1.5ch 1.5ch;
+  }
+  .dd-preview {
+    display: none; /* hover preview is pointless on touch; tap opens overlay */
+  }
+}
+
+/* ---- Room: input bar ---- */
+.dd-inputbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 1ch;
+  padding: 0.5lh 2ch 0.75lh;
+}
+.dd-prompt {
+  color: var(--dd-accent);
+}
+textarea.dd-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--foreground0);
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  line-height: 1.4;
+  padding: 0;
+  max-height: 6lh;
+  overflow-y: auto;
+}
+textarea.dd-input::placeholder {
+  color: var(--foreground2);
+}
+
+/* ---- Centered modal (identity setup) ---- */
+.dd-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.dd-modal {
+  background: var(--background1);
+  min-width: 40ch;
+  max-width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75lh;
+}
+.dd-modal-title {
+  color: var(--dd-accent);
+}
+.dd-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+}

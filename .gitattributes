@@ -1,0 +1,3 @@
+# Normalize line endings: store as LF, check out as LF everywhere so the shell
+# scripts (and everything else) are consistent across platforms.
+* text=auto eol=lf

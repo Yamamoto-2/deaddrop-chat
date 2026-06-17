@@ -1,0 +1,26 @@
+# Go build output
+/deaddrop
+/deaddrop.exe
+/cli-test.exe
+
+# CLI build artifacts (the placeholder README.txt is kept)
+cli-dist/deaddrop-*
+
+# Frontend
+web/node_modules/
+web/dist/
+
+# Local env / runtime
+.env
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Internal design doc (not for public repo)
+DESIGN.md

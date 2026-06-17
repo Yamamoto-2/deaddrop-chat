@@ -1,0 +1,24 @@
+{
+  "name": "deaddrop-web",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
+    "@webtui/css": "0.1.8",
+    "dompurify": "^3.4.10",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.2.0"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  }
+}

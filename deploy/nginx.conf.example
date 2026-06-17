@@ -1,0 +1,43 @@
+# DeadDrop behind nginx. The app needs no domain config — it derives its
+# WebSocket URL from the request origin. Just forward the port and pass the
+# WebSocket upgrade headers.
+#
+# IMPORTANT: serve over HTTPS (or a Tor .onion). The E2EE layer needs a secure
+# context (HTTPS / localhost / .onion) to run, and plain HTTP lets an active
+# network attacker tamper with the page code. The block below is the shared
+# proxy config; prefer the TLS server underneath it.
+
+# --- Plain HTTP: redirect to HTTPS (don't serve the app on :80 in production) ---
+server {
+    listen 80;
+    server_name _;
+    return 301 https://$host$request_uri;
+}
+
+# --- HTTPS (recommended) ---
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name your.domain;
+
+    ssl_certificate     /etc/letsencrypt/live/your.domain/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your.domain/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 600s;
+    }
+}
+
+# --- Tor hidden service (alternative, strongest metadata protection) ---
+# A .onion address is self-authenticating and counts as a secure context in Tor
+# Browser, so Web Crypto works WITHOUT a CA certificate. Add to torrc:
+#
+#   HiddenServiceDir /var/lib/tor/deaddrop/
+#   HiddenServicePort 80 127.0.0.1:8080
+#
+# Then share the generated <hash>.onion address. No nginx needed for onion-only.
