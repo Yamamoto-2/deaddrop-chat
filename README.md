@@ -66,19 +66,25 @@ docker run -p 7337:7337 deaddrop
 Put it behind nginx with `deploy/nginx.conf.example` to serve on port 80
 (prefer HTTPS or a Tor `.onion` — the E2EE needs a secure context).
 
-## Terminal client (fileless `curl | sh`)
+## Terminal client (`curl | sh`)
+
+Built to be **inspected and verified**, not run blindly:
 
 ```bash
-curl https://<host>/cli | sh                 # interactive: prompts for room/name
-curl https://<host>/cli | sh -s -- room:pw n # preset room:password and nick
-curl https://<host>/cli                       # inspect the script first
+curl https://<host>/cli                       # 1. read the script first
+curl https://<host>/cli | sh                  # 2. interactive: prompts for room/name
+curl https://<host>/cli | sh -s -- room:pw n  # preset room:password and nick
 ```
 
-The script detects OS/arch, downloads a tiny static binary into RAM
-(`/dev/shm`), verifies its SHA-256, runs it, and deletes it on exit — nothing is
-written to persistent disk. The binary speaks the same WebSocket + E2EE
-(Argon2id + XChaCha20-Poly1305 + length padding) as the web app, so CLI and
+The script detects OS/arch, downloads a small static binary, and **verifies its
+SHA-256** (embedded in the script) before running. Prefer to do it by hand?
+Download the binary from `/cli/bin/<os>-<arch>`, check the checksum yourself, and
+run it directly — no pipe to `sh` needed. The binary speaks the same WebSocket +
+E2EE (Argon2id + XChaCha20-Poly1305 + length padding) as the web app, so CLI and
 browser users share rooms transparently. The server never sees plaintext.
+
+As with any `curl | sh`, trust ultimately rests on the host (HTTPS / `.onion`)
+and reproducible builds — see [`SECURITY.md`](SECURITY.md).
 
 Binaries are built automatically by `docker build`; for a local `go build`, run
 `sh scripts/build-cli.sh` first so the server can embed and serve them.
@@ -96,6 +102,10 @@ E2EE protects message **content** from the server; it does not hide metadata
 (connection times, IPs, timing) and, over plain HTTP, can't stop an active
 network attacker from tampering with the page code. Prefer **HTTPS** or a Tor
 **`.onion`** (a secure context that also hides IPs).
+
+Read [`SECURITY.md`](SECURITY.md) for the full, honest threat model — what
+DeadDrop does and does not protect against — before trusting it with anything
+sensitive.
 
 ## License
 
