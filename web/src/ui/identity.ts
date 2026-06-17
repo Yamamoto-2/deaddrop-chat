@@ -31,7 +31,12 @@ export function identityEditor(onEnter?: () => void): IdentityEditor {
   });
   if (onEnter) {
     nickInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") onEnter();
+      if (e.key === "Enter") {
+        // preventDefault so this same Enter doesn't bleed into the message
+        // textarea (which onEnter focuses) and insert a stray newline.
+        e.preventDefault();
+        onEnter();
+      }
     });
   }
 

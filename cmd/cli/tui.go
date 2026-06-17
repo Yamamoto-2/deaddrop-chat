@@ -6,7 +6,13 @@ package main
 // leaves nothing behind (no-trace).
 
 import (
+	"encoding/base64"
 	"fmt"
+	"mime"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +31,27 @@ var (
 	stDim    = lipgloss.NewStyle().Foreground(cDim)
 	stFg     = lipgloss.NewStyle().Foreground(cFg)
 )
+
+// Roster presence cadence — must match the web client (proto.ts).
+const (
+	helloInterval = 15 * time.Second
+	rosterExpire  = 45 * time.Second
+)
+
+// rosterPeer is one known room member, learned from encrypted hello beacons.
+type rosterPeer struct {
+	nick, color string
+	last        time.Time
+}
+
+func rosterKey(nick, color string) string { return nick + " " + color }
+
+// tickMsg drives the roster heartbeat.
+type tickMsg struct{}
+
+func heartbeatCmd() tea.Cmd {
+	return tea.Tick(helloInterval, func(time.Time) tea.Msg { return tickMsg{} })
+}
 
 type screen int
 
@@ -68,6 +95,8 @@ type tuiModel struct {
 	roomName string
 	online   int
 	live     bool
+	files    []filePayload         // received files, in arrival order (1-based to the user)
+	roster   map[string]rosterPeer // who's in the room, from encrypted beacons
 }
 
 func runTUI(server, room, pass, nick string) {
@@ -125,8 +154,20 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateChat(msg)
 	case wsMsg:
 		return m.updateWS(msg)
+	case tickMsg:
+		return m.updateTick()
 	}
 	return m, nil
+}
+
+// updateTick fires on the heartbeat: re-announce ourselves, expire stale peers,
+// and reschedule — but stop once the connection is gone.
+func (m *tuiModel) updateTick() (tea.Model, tea.Cmd) {
+	if !m.live {
+		return m, nil
+	}
+	m.pruneRoster()
+	return m, tea.Batch(m.announce("hello"), heartbeatCmd())
 }
 
 // --- join screen ---
@@ -209,15 +250,18 @@ func (m *tuiModel) join() tea.Cmd {
 
 	in := textinput.New()
 	in.Prompt = "› "
-	in.Placeholder = "type a message…"
+	in.Placeholder = "message · /who · /save [N] · /sendfile <path> · /help"
 	in.CharLimit = 2000
 	in.Focus()
 	m.input = in
 	m.vp = viewport.New(m.chatWidth(), m.chatHeight())
 	m.refreshVP()
 
+	m.roster = map[string]rosterPeer{}
+	m.touchPeer(m.myNick, m.myColor)
+
 	m.scr = scrChat
-	return tea.Batch(textinput.Blink, waitFor(m.incoming))
+	return tea.Batch(textinput.Blink, waitFor(m.incoming), m.announce("hello"), heartbeatCmd())
 }
 
 // --- chat screen ---
@@ -229,11 +273,30 @@ func (m *tuiModel) updateChat(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "enter":
 		text := m.input.Value()
-		if strings.TrimSpace(text) != "" && m.client != nil {
-			p := payload{Nick: m.myNick, Color: m.myColor, Ts: nowMs(), Text: text}
-			_ = m.client.Send(p)
-			m.appendMsg(p)
+		trimmed := strings.TrimSpace(text)
+		if trimmed == "" {
+			return m, nil
+		}
+		switch {
+		case trimmed == "/who" || trimmed == "/names":
+			m.showWho()
 			m.input.SetValue("")
+		case trimmed == "/help" || trimmed == "/?":
+			m.showHelp()
+			m.input.SetValue("")
+		case trimmed == "/save" || strings.HasPrefix(trimmed, "/save "):
+			m.handleSave(trimmed)
+			m.input.SetValue("")
+		case strings.HasPrefix(trimmed, "/sendfile"):
+			m.handleSendFile(trimmed)
+			m.input.SetValue("")
+		default:
+			if m.client != nil {
+				p := payload{Nick: m.myNick, Color: m.myColor, Ts: nowMs(), Text: text}
+				_ = m.client.Send(p)
+				m.appendMsg(p)
+				m.input.SetValue("")
+			}
 		}
 		return m, nil
 	case "pgup", "pgdown":
@@ -249,7 +312,20 @@ func (m *tuiModel) updateChat(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *tuiModel) updateWS(msg wsMsg) (tea.Model, tea.Cmd) {
 	switch msg.Kind {
 	case "msg":
-		m.appendMsg(msg.Msg)
+		p := msg.Msg
+		switch p.Kind {
+		case "hello":
+			_, known := m.roster[rosterKey(p.Nick, p.Color)]
+			m.touchPeer(p.Nick, p.Color)
+			if !known {
+				// reply so the newcomer learns about us too
+				return m, tea.Batch(m.announce("hello"), waitFor(m.incoming))
+			}
+		case "bye":
+			delete(m.roster, rosterKey(p.Nick, p.Color))
+		default:
+			m.appendMsg(p)
+		}
 	case "presence":
 		m.online = msg.N
 	case "closed":
@@ -265,10 +341,191 @@ func (m *tuiModel) appendMsg(p payload) {
 		color = "#9fb0a6"
 	}
 	nick := lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render(p.Nick + ":")
-	line := stDim.Render(clock(p.Ts)) + " " + nick + " " + stFg.Render(p.Text)
-	m.lines = append(m.lines, line)
+	prefix := stDim.Render(clock(p.Ts)) + " " + nick + " "
+	if strings.TrimSpace(p.Text) != "" {
+		m.lines = append(m.lines, prefix+stFg.Render(p.Text))
+	}
+	if p.File != nil {
+		m.files = append(m.files, *p.File)
+		n := len(m.files)
+		info := fmt.Sprintf("📎 [file %d] %s · %s  (/save %d)", n, p.File.Name, humanSize(p.File.Size), n)
+		m.lines = append(m.lines, prefix+stAccent.Render(info))
+	}
 	m.refreshVP()
 	m.vp.GotoBottom()
+}
+
+// appendSys adds a local-only status line (never sent to anyone).
+func (m *tuiModel) appendSys(text string) {
+	m.lines = append(m.lines, stDim.Render("· "+text))
+	m.refreshVP()
+	m.vp.GotoBottom()
+}
+
+// --- roster (encrypted presence) ---
+
+func (m *tuiModel) touchPeer(nick, color string) {
+	if m.roster == nil {
+		m.roster = map[string]rosterPeer{}
+	}
+	m.roster[rosterKey(nick, color)] = rosterPeer{nick: nick, color: color, last: time.Now()}
+}
+
+// announce sends an encrypted hello/bye beacon (in the background so it never
+// blocks the UI loop) and updates our own roster entry.
+func (m *tuiModel) announce(kind string) tea.Cmd {
+	if m.client == nil {
+		return nil
+	}
+	if kind == "hello" {
+		m.touchPeer(m.myNick, m.myColor)
+	} else {
+		delete(m.roster, rosterKey(m.myNick, m.myColor))
+	}
+	c := m.client
+	p := payload{Nick: m.myNick, Color: m.myColor, Ts: nowMs(), Kind: kind}
+	return func() tea.Msg {
+		_ = c.Send(p)
+		return nil
+	}
+}
+
+func (m *tuiModel) pruneRoster() {
+	cutoff := time.Now().Add(-rosterExpire)
+	for k, v := range m.roster {
+		self := v.nick == m.myNick && v.color == m.myColor
+		if v.last.Before(cutoff) && !self {
+			delete(m.roster, k)
+		}
+	}
+}
+
+func (m *tuiModel) showWho() {
+	m.pruneRoster()
+	names := make([]string, 0, len(m.roster))
+	for _, p := range m.roster {
+		label := p.nick
+		if p.nick == m.myNick && p.color == m.myColor {
+			label += " (you)"
+		}
+		names = append(names, label)
+	}
+	sort.Strings(names)
+	m.appendSys(fmt.Sprintf("in #%s (%d): %s", m.roomName, len(names), strings.Join(names, ", ")))
+}
+
+func (m *tuiModel) showHelp() {
+	for _, line := range []string{
+		"commands:",
+		"  /who               who's in the room",
+		"  /save [N] [path]   save a received file (default: most recent)",
+		"  /sendfile <path>   send a file",
+		"  /help              this help",
+		"  Enter send · PgUp/PgDn scroll · Esc or Ctrl-C quit",
+	} {
+		m.appendSys(line)
+	}
+}
+
+// handleSave parses "/save", "/save N", or "/save N path" and writes a received
+// file to disk. Nothing is written unless the user runs this — the client stays
+// no-trace by default.
+func (m *tuiModel) handleSave(line string) {
+	rest := strings.TrimSpace(strings.TrimPrefix(line, "/save"))
+	idx := len(m.files) // default: most recent file
+	dest := ""
+	if rest != "" {
+		parts := strings.SplitN(rest, " ", 2)
+		if n, err := strconv.Atoi(parts[0]); err == nil {
+			idx = n
+			if len(parts) == 2 {
+				dest = strings.TrimSpace(parts[1])
+			}
+		} else {
+			dest = rest // no numeric index given; treat the whole arg as a path
+		}
+	}
+
+	if len(m.files) == 0 {
+		m.appendSys("no files received yet")
+		return
+	}
+	if idx < 1 || idx > len(m.files) {
+		m.appendSys(fmt.Sprintf("no file #%d (have 1..%d)", idx, len(m.files)))
+		return
+	}
+	f := m.files[idx-1]
+	data, err := base64.StdEncoding.DecodeString(f.Data)
+	if err != nil {
+		m.appendSys("save failed: corrupt file data")
+		return
+	}
+
+	// The name is sender-controlled — collapse it to a bare basename so a
+	// malicious peer can't path-traverse out of the chosen directory.
+	safe := filepath.Base(filepath.FromSlash(f.Name))
+	if safe == "." || safe == ".." || safe == "" || safe == string(filepath.Separator) {
+		safe = "file"
+	}
+	target := safe
+	if dest != "" {
+		dest = expandHome(dest)
+		if info, statErr := os.Stat(dest); statErr == nil && info.IsDir() {
+			target = filepath.Join(dest, safe)
+		} else {
+			target = dest
+		}
+	}
+	target = uniquePath(target)
+	if err := os.WriteFile(target, data, 0o600); err != nil {
+		m.appendSys("save failed: " + err.Error())
+		return
+	}
+	m.appendSys("saved " + target)
+}
+
+// handleSendFile parses "/sendfile <path>", reads the file, and sends it as an
+// encrypted attachment (same wire format as the web client).
+func (m *tuiModel) handleSendFile(line string) {
+	path := strings.TrimSpace(strings.TrimPrefix(line, "/sendfile"))
+	if path == "" {
+		m.appendSys("usage: /sendfile <path>")
+		return
+	}
+	path = expandHome(path)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		m.appendSys("send failed: " + err.Error())
+		return
+	}
+	if int64(len(data)) > maxFileBytes {
+		m.appendSys(fmt.Sprintf("send failed: file too large (max %s)", humanSize(maxFileBytes)))
+		return
+	}
+	mtype := mime.TypeByExtension(filepath.Ext(path))
+	if mtype == "" {
+		mtype = "application/octet-stream"
+	}
+	p := payload{
+		Nick:  m.myNick,
+		Color: m.myColor,
+		Ts:    nowMs(),
+		File: &filePayload{
+			Name: filepath.Base(path),
+			Mime: mtype,
+			Size: int64(len(data)),
+			Data: base64.StdEncoding.EncodeToString(data),
+		},
+	}
+	if m.client == nil {
+		m.appendSys("send failed: not connected")
+		return
+	}
+	if err := m.client.Send(p); err != nil {
+		m.appendSys("send failed: " + err.Error())
+		return
+	}
+	m.appendMsg(p)
 }
 
 func (m *tuiModel) refreshVP() {
@@ -310,6 +567,8 @@ func (m *tuiModel) layout() {
 
 func (m *tuiModel) quit() {
 	if m.client != nil {
+		// best-effort "bye" so peers drop us from their roster immediately
+		_ = m.client.Send(payload{Nick: m.myNick, Color: m.myColor, Ts: nowMs(), Kind: "bye"})
 		m.client.Close()
 	}
 }

@@ -40,6 +40,24 @@ body {
   outline-offset: 1px;
 }
 
+/* WebTUI bolds buttons on :focus (font-weight:700), which shifts monospace
+   glyph widths and drifts the layout on click. Pin button weight so it never
+   changes between rest/hover/focus (the underline focus cue stays). These rules
+   sit outside @layer, so they win over WebTUI's component CSS. */
+button:focus,
+input[type="button"]:focus,
+input[type="submit"]:focus,
+input[type="reset"]:focus,
+[is-~="button"]:focus {
+  font-weight: 400;
+}
+.dd-send,
+.dd-send:focus,
+.dd-action,
+.dd-action:focus {
+  font-weight: var(--font-weight-bold);
+}
+
 /* The whole app is one terminal window: a centered, bordered panel. */
 #app {
   display: flex;
@@ -657,4 +675,45 @@ textarea.dd-input::placeholder {
 .dd-modal-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+/* ---- Room: roster ("who's here") ---- */
+/* presence badge looks like plain status text but is clickable */
+.dd-presence {
+  background: none;
+  background-image: none;
+  border: none;
+  color: var(--foreground2);
+  cursor: pointer;
+  padding: 0;
+  height: auto;
+  min-width: 0;
+  font: inherit;
+}
+.dd-presence:hover {
+  color: var(--dd-accent);
+}
+.dd-roster {
+  position: fixed;
+  z-index: 60;
+  background: var(--background1);
+  border: 1px solid var(--background3);
+  padding: 0.5lh 1.5ch;
+  min-width: 18ch;
+  max-width: 40ch;
+  max-height: 50vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25lh;
+}
+.dd-roster-title {
+  color: var(--dd-accent);
+  margin-bottom: 0.25lh;
+}
+.dd-roster-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8ch;
+  white-space: nowrap;
 }

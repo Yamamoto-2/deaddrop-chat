@@ -2,6 +2,7 @@
 /deaddrop
 /deaddrop.exe
 /cli-test.exe
+/cli.exe
 
 # CLI build artifacts (the placeholder README.txt is kept)
 cli-dist/deaddrop-*
@@ -22,5 +23,6 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Internal design doc (not for public repo)
+# Internal docs (not for public repo)
 DESIGN.md
+PLAN.md

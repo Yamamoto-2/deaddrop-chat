@@ -25,7 +25,7 @@ func getenv(key, def string) string {
 }
 
 func main() {
-	port := getenv("PORT", "8080")
+	port := getenv("PORT", "7337")
 	maxFrame, err := strconv.ParseInt(getenv("MAX_FRAME_BYTES", "10000000"), 10, 64)
 	if err != nil {
 		log.Fatalf("invalid MAX_FRAME_BYTES: %v", err)

@@ -10,9 +10,14 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
+
+// maxFileBytes mirrors the web client's MAX_FILE_BYTES (file.ts): the raw size
+// cap before base64+JSON+encrypt pushes the frame toward MAX_FRAME_BYTES.
+const maxFileBytes = 5 * 1024 * 1024
 
 // Same palette as the web client, for nick colors.
 var palette = []string{
@@ -26,7 +31,7 @@ func main() {
 	listen := flag.Duration("listen", 3*time.Second, "headless listen duration")
 	flag.Parse()
 
-	server := envOr("DD_SERVER", "ws://127.0.0.1:8080/ws")
+	server := envOr("DD_SERVER", "ws://127.0.0.1:7337/ws")
 	room, pass, nick := config(flag.Args())
 
 	if *send != "" {
@@ -75,7 +80,54 @@ func runHeadless(server, room, pass, nick, text string, listen time.Duration) {
 
 func printMsg(p payload) {
 	r, g, b := hexRGB(p.Color)
-	fmt.Printf("\033[38;2;%d;%d;%dm%s\033[0m  %s\n", r, g, b, p.Nick, p.Text)
+	body := p.Text
+	if p.File != nil {
+		info := fmt.Sprintf("📎 %s (%s)", p.File.Name, humanSize(p.File.Size))
+		if body != "" {
+			body += " " + info
+		} else {
+			body = info
+		}
+	}
+	fmt.Printf("\033[38;2;%d;%d;%dm%s\033[0m  %s\n", r, g, b, p.Nick, body)
+}
+
+// humanSize formats a byte count like the web client's humanSize (file.ts).
+func humanSize(n int64) string {
+	switch {
+	case n < 1024:
+		return fmt.Sprintf("%d B", n)
+	case n < 1024*1024:
+		return fmt.Sprintf("%.1f KB", float64(n)/1024)
+	default:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1024*1024))
+	}
+}
+
+// expandHome resolves a leading ~ to the user's home directory.
+func expandHome(p string) string {
+	if p == "~" || strings.HasPrefix(p, "~/") || strings.HasPrefix(p, "~\\") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, p[1:])
+		}
+	}
+	return p
+}
+
+// uniquePath returns p if it doesn't exist, else p with a -1/-2/... suffix
+// before the extension, so a save never silently overwrites an existing file.
+func uniquePath(p string) string {
+	if _, err := os.Stat(p); os.IsNotExist(err) {
+		return p
+	}
+	ext := filepath.Ext(p)
+	base := strings.TrimSuffix(p, ext)
+	for i := 1; ; i++ {
+		cand := fmt.Sprintf("%s-%d%s", base, i, ext)
+		if _, err := os.Stat(cand); os.IsNotExist(err) {
+			return cand
+		}
+	}
 }
 
 func config(args []string) (room, pass, nick string) {

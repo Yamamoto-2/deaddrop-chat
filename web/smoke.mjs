@@ -1,6 +1,6 @@
 // Smoke test for the relay: two clients in one room, one sends, the other must
 // receive. Uses Node's built-in global WebSocket (Node >=22).
-const URL = "ws://localhost:8080/ws";
+const URL = "ws://localhost:7337/ws";
 const ROOM = "smoke-routing-id";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));

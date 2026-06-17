@@ -74,13 +74,23 @@ export interface FilePayload {
 }
 
 // The plaintext that gets encrypted into `c`. Never sent in the clear.
-// A message carries text, a file, or both.
+// A chat message carries text, a file, or both. A presence beacon sets `kind`
+// ("hello"/"bye") and carries no text/file. `kind` is absent on chat messages,
+// so their wire bytes are unchanged (and cross-compatible with the CLI).
 export interface MsgPayload {
   nick: string;
   color: string;
   ts: number;
   text?: string;
   file?: FilePayload;
+  kind?: "hello" | "bye";
 }
+
+// Roster presence: clients announce themselves (encrypted) on join and on a
+// heartbeat, and prune peers not heard from within the expiry window. The
+// server never sees these — it only relays ciphertext and a raw socket count.
+// These constants must match the CLI client (cmd/cli).
+export const HELLO_INTERVAL_MS = 15000;
+export const ROSTER_EXPIRE_MS = 45000;
 
 export type ConnState = "connecting" | "open" | "closed";

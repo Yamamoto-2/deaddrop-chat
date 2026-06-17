@@ -39,10 +39,10 @@ fans out messages. No accounts, no persistence, no logs.
 Two terminals:
 
 ```bash
-# 1) backend (relay) on :8080
+# 1) backend (relay) on :7337
 go run .
 
-# 2) frontend dev server on :5173 (proxies /ws -> :8080)
+# 2) frontend dev server on :5173 (proxies /ws -> :7337)
 cd web && npm install && npm run dev
 ```
 
@@ -53,14 +53,14 @@ Open two browser tabs at `http://localhost:5173/#test` and chat.
 ```bash
 cd web && npm install && npm run build && cd ..
 go build -o deaddrop .
-./deaddrop          # serves frontend + /ws on :8080
+./deaddrop          # serves frontend + /ws on :7337
 ```
 
 ## Docker (single container)
 
 ```bash
 docker build -t deaddrop .
-docker run -p 8080:8080 deaddrop
+docker run -p 7337:7337 deaddrop
 ```
 
 Put it behind nginx with `deploy/nginx.conf.example` to serve on port 80
@@ -87,7 +87,7 @@ Binaries are built automatically by `docker build`; for a local `go build`, run
 
 | Env | Default | Meaning |
 |-----|---------|---------|
-| `PORT` | `8080` | Listen port |
+| `PORT` | `7337` | Listen port |
 | `MAX_FRAME_BYTES` | `10000000` | Max accepted WebSocket frame (~5MB files) |
 
 ## Security

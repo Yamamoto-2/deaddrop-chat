@@ -24,13 +24,27 @@ type envelope struct {
 	N    int    `json:"n,omitempty"`
 }
 
+// filePayload mirrors the web FilePayload (proto.ts): a file embedded (base64)
+// inside the encrypted message body.
+type filePayload struct {
+	Name string `json:"name"`
+	Mime string `json:"mime"`
+	Size int64  `json:"size"` // original byte length
+	Data string `json:"data"` // base64 of the raw bytes
+}
+
 // Encrypted message body (matches MsgPayload). Key order is irrelevant — the
-// receiver JSON-decodes regardless of field order.
+// receiver JSON-decodes regardless of field order. File is a pointer with
+// omitempty so a plain text message marshals to the exact same bytes as before
+// (and as the web client), keeping ciphertext/padding cross-compatible. Kind is
+// "hello"/"bye" for roster presence beacons, omitted on chat messages.
 type payload struct {
-	Nick  string `json:"nick"`
-	Color string `json:"color"`
-	Ts    int64  `json:"ts"`
-	Text  string `json:"text,omitempty"`
+	Nick  string       `json:"nick"`
+	Color string       `json:"color"`
+	Ts    int64        `json:"ts"`
+	Text  string       `json:"text,omitempty"`
+	File  *filePayload `json:"file,omitempty"`
+	Kind  string       `json:"kind,omitempty"`
 }
 
 // routingID == web deriveRoutingId: "r" + cyrb53(room).toString(36).

@@ -23,6 +23,6 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /deaddrop .
 # 3) Minimal runtime: one static binary, one port.
 FROM gcr.io/distroless/static-debian12 AS run
 COPY --from=build /deaddrop /deaddrop
-EXPOSE 8080
-ENV PORT=8080
+EXPOSE 7337
+ENV PORT=7337
 ENTRYPOINT ["/deaddrop"]
