@@ -1,11 +1,34 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+// The ciphertext the server relays must not contain any plaintext field — not
+// the nick, not the text, not even the JSON keys. This is the whole point of the
+// blind relay.
+func TestCiphertextHidesPlaintext(t *testing.T) {
+	key := deriveKey("room", "pw")
+	p := payload{Nick: "secret-nick", Color: "#5fd7a7", Ts: 1, Text: "top secret body"}
+	ct, err := encryptJSON(key, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := base64.StdEncoding.DecodeString(ct)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{"secret-nick", "top secret body", "nick", "text", "color"} {
+		if bytes.Contains(raw, []byte(needle)) {
+			t.Fatalf("ciphertext leaks %q", needle)
+		}
+	}
+}
 
 // A text-only message must marshal to the exact bytes it did before the `file`
 // field existed (and as the web client does). The `file` key must be absent, or
