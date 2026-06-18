@@ -28,8 +28,9 @@ there. Spin up your own (one binary or `docker run`) for real use.
   client derives its WebSocket URL from the page origin.
 - **Terminal-style UI** — WebTUI styling, per-user colors, Markdown with code
   highlighting, and encrypted file/image attachments (paste, drag-drop).
-- **Native terminal client** — a full-screen TUI delivered fileless via
-  `curl <host>/cli | sh`; shares rooms with the web app over the same E2EE.
+- **Native terminal client** — a full-screen TUI delivered via
+  `curl <host>/cli | sh` (inspectable, SHA-256-verified); shares rooms with the
+  web app over the same E2EE.
 - **Metadata hardening** — ciphertext length padding, hashed room routing ids,
   and `.onion`-friendly deployment.
 
@@ -58,8 +59,9 @@ recognition DeadDrop doesn't.
   [WebTUI](https://webtui.ironclad.sh) (terminal look, normal app interaction).
 - **Routing** — `domain.name/#room` or `domain.name/#room:password`. The fragment never
   reaches the server; it derives an opaque `cyrb53(room)` routing id client-side.
-- **Terminal client** — a native Go client, delivered fileless via
-  `curl <host>/cli | sh`, speaks the exact same E2EE protocol (see below).
+- **Terminal client** — a native Go client, delivered via
+  `curl <host>/cli | sh` (inspectable, SHA-256-verified), speaks the exact same
+  E2EE protocol (see below).
 
 ## Develop
 

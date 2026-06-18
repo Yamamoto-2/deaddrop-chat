@@ -1,6 +1,6 @@
 package main
 
-// Serves the native CLI client: `GET /cli` returns a fileless bootstrap script
+// Serves the native CLI client: `GET /cli` returns a self-verifying bootstrap script
 // (curl | sh), and `GET /cli/bin/<name>` serves the embedded static binaries.
 // The script and download URLs are derived from the request host, so there is
 // still no domain anywhere in the config.
