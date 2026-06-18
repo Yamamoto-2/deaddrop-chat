@@ -1,0 +1,23 @@
+# DeadDrop — Portainer stack (Docker Compose).
+#
+# Deploy in Portainer:  Stacks → Add stack → then either
+#   - paste this file into the web editor, or
+#   - choose "Repository", point it at this repo, and set the compose path to
+#     deploy/portainer-stack.yml
+#
+# It pulls the prebuilt image from GitHub Container Registry, so there is nothing
+# to build. The app is stateless by design (no accounts, no persistence), so no
+# volumes are needed. Put it behind HTTPS or a Tor .onion in production — the
+# E2EE needs a secure context (see deploy/nginx.conf.example).
+version: "3.8"
+
+services:
+  deaddrop:
+    image: ghcr.io/yamamoto-2/deaddrop-chat:latest # pin e.g. :0.1.0 for reproducibility
+    container_name: deaddrop
+    restart: unless-stopped
+    ports:
+      - "7337:7337" # host:container — change the host side if 7337 is taken
+    environment:
+      PORT: "7337"
+      # MAX_FRAME_BYTES: "10000000"  # ~5MB encrypted attachments (default)

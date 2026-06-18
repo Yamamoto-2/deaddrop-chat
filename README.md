@@ -4,6 +4,11 @@ Anonymous, ephemeral, end-to-end-encrypted chat. The server is a blind
 ciphertext relay — a "dead drop": it groups sockets by an opaque routing id and
 fans out messages. No accounts, no persistence, no logs.
 
+A secure, self-hostable successor in the spirit of
+[hack.chat](https://hack.chat) — accountless, ephemeral, and logless, but
+**end-to-end encrypted and server-blind**, with encrypted file sharing and a
+native terminal client.
+
 ### ▶ Live demo: **[deaddrop-chat.com](https://deaddrop-chat.com)**
 
 It's a public demo room — anyone can join, so don't send anything sensitive
@@ -27,6 +32,23 @@ there. Spin up your own (one binary or `docker run`) for real use.
   `curl <host>/cli | sh`; shares rooms with the web app over the same E2EE.
 - **Metadata hardening** — ciphertext length padding, hashed room routing ids,
   and `.onion`-friendly deployment.
+
+## Compared to hack.chat
+
+DeadDrop carries the hack.chat spirit — minimal, accountless, ephemeral, no
+logs — and adds a real security model on top.
+
+|                                               | hack.chat            | DeadDrop                  |
+| --------------------------------------------- | -------------------- | ------------------------- |
+| Accountless · ephemeral · no logs             | ✓                    | ✓                         |
+| End-to-end encrypted (server can't read msgs) | ✗ — server sees text | ✓                         |
+| Encrypted file & image sharing                | ✗                    | ✓                         |
+| Self-host                                      | ✓                    | ✓ — single static binary  |
+| Native terminal client                        | community projects   | ✓ built-in (`curl \| sh`) |
+
+This is a spiritual successor and a security upgrade — not a claim to have
+surpassed hack.chat, which has years of community, an ecosystem, and name
+recognition DeadDrop doesn't.
 
 ## Architecture
 
@@ -70,6 +92,14 @@ docker run -p 7337:7337 deaddrop
 
 Put it behind nginx with `deploy/nginx.conf.example` to serve on port 80
 (prefer HTTPS or a Tor `.onion` — the E2EE needs a secure context).
+
+## Portainer
+
+Use [`deploy/portainer-stack.yml`](deploy/portainer-stack.yml) — a Compose file
+that pulls the prebuilt image from GHCR (nothing to build). In Portainer go to
+**Stacks → Add stack**, then either paste the file into the web editor, or pick
+**Repository**, point it at this repo, and set the compose path to
+`deploy/portainer-stack.yml`. It's stateless, so no volumes are required.
 
 ## Terminal client (`curl | sh`)
 
