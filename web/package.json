@@ -14,7 +14,7 @@
     "@noble/ciphers": "^2.2.0",
     "@noble/hashes": "^2.2.0",
     "@webtui/css": "0.1.8",
-    "dompurify": "^3.4.10",
+    "dompurify": "^3.4.11",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.2.0"
   },
