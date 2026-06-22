@@ -28,6 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Install Go *before* codeql-action/init so init can wrap this toolchain
+      # for build tracing. Installing it afterwards puts setup-go's binary ahead
+      # of CodeQL's tracer on PATH, and the build is never observed.
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
@@ -35,10 +43,6 @@ jobs:
 
       # Go is build-mode: manual — compile every package so CodeQL can trace it.
       # The root package embeds web/dist, so a stub satisfies the go:embed.
-      - if: matrix.language == 'go'
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
       - if: matrix.language == 'go'
         run: |
           mkdir -p web/dist
