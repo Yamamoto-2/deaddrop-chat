@@ -247,6 +247,19 @@ input:not([type]):focus {
 .dd-logo {
   color: var(--dd-accent);
   letter-spacing: 0.1ch;
+  text-decoration: none; /* a wordmark, not an obvious link */
+  width: fit-content;
+}
+.dd-logo:hover {
+  text-decoration: underline; /* subtle affordance on hover only */
+}
+/* Faux terminal "icon": an inverted >_ chip standing in for a real glyph. */
+.dd-logo-mark {
+  background: var(--dd-accent);
+  color: var(--background0);
+  padding: 0 0.4ch;
+  margin-right: 0.3ch;
+  font-weight: var(--font-weight-bold);
 }
 .dd-sub {
   color: var(--foreground2);

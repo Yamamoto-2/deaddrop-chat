@@ -22,10 +22,13 @@ export interface IdentityEditor {
 export function identityEditor(onEnter?: () => void): IdentityEditor {
   let color = getColor();
 
+  // Pre-fill a random handle (e.g. "SilentRaven") when no name is set yet, so
+  // people show up under a real alias instead of a flat "anon" — they can keep
+  // it, edit it, or shuffle for another.
   const nickInput = h("input", {
     type: "text",
     placeholder: "name",
-    value: getNick(),
+    value: getNick() || randomNick(),
     class: "dd-nick-input",
     "aria-label": "your name",
   });
@@ -116,7 +119,7 @@ export function identityEditor(onEnter?: () => void): IdentityEditor {
   ]);
 
   function read(): { nick: string; color: string } {
-    return { nick: nickInput.value.trim() || "anon", color };
+    return { nick: nickInput.value.trim() || randomNick(), color };
   }
   function persist(): { nick: string; color: string } {
     const v = read();

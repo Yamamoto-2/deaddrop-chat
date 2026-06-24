@@ -37,14 +37,11 @@ export function renderHome(app: HTMLElement): () => void {
   }
   reveal.addEventListener("click", () => setReveal(!pwVisible));
 
-  const enter = h("button", { type: "button", class: "dd-action" }, ["enter drop"]);
+  const enter = h("button", { type: "button", class: "dd-action" }, ["enter room"]);
 
   function go(): void {
-    const r = room.value.trim();
-    if (!r) {
-      room.focus();
-      return;
-    }
+    // No room name? Hand out a random one (password stays optional).
+    const r = room.value.trim() || randomRoom();
     ident.persist();
     location.hash = buildHash(r, pass.value);
   }
@@ -57,7 +54,17 @@ export function renderHome(app: HTMLElement): () => void {
   }
 
   const view = h("div", { class: "dd-login" }, [
-    h("div", { class: "dd-logo" }, ["▚ DEADDROP"]),
+    h(
+      "a",
+      {
+        class: "dd-logo",
+        href: "https://github.com/Yamamoto-2/deaddrop-chat",
+        target: "_blank",
+        rel: "noopener noreferrer",
+        title: "source on GitHub",
+      },
+      [h("span", { class: "dd-logo-mark" }, [">_"]), " DEADDROP"],
+    ),
     h("p", { class: "dd-sub" }, [
       "anonymous · ephemeral · end-to-end encrypted",
     ]),
@@ -69,7 +76,7 @@ export function renderHome(app: HTMLElement): () => void {
         room.focus();
       },
     }),
-    field("pass", pass, {
+    field("password", pass, {
       prompt: true,
       extra: [reveal],
       onRandom: () => {
