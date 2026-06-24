@@ -90,7 +90,17 @@ export interface MsgPayload {
 // heartbeat, and prune peers not heard from within the expiry window. The
 // server never sees these — it only relays ciphertext and a raw socket count.
 // These constants must match the CLI client (cmd/cli).
-export const HELLO_INTERVAL_MS = 15000;
+export const HELLO_INTERVAL_MS = 15000; // mean heartbeat cadence
 export const ROSTER_EXPIRE_MS = 45000;
+
+// Each heartbeat waits a randomized amount rather than a fixed 15s, so the
+// encrypted hello beacons don't betray themselves to a traffic observer by
+// their metronome-regular timing (real messages are bursty and irregular).
+// Bounded to ±50% of the mean, whose max (~22.5s) stays well under the 45s
+// expiry so peers are never pruned between beats. NOTE: this only blurs the
+// *timing* signal — beacons may still be distinguishable by ciphertext size.
+export function nextHelloDelay(): number {
+  return HELLO_INTERVAL_MS * (0.5 + Math.random());
+}
 
 export type ConnState = "connecting" | "open" | "closed";
