@@ -16,10 +16,12 @@ import (
 )
 
 func testServer(maxFrame int64) *httptest.Server {
-	h := hub.New()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws.Serve(h, maxFrame, w, r)
-	}))
+	return testServerCfg(ws.Config{MaxFrame: maxFrame})
+}
+
+func testServerCfg(cfg ws.Config) *httptest.Server {
+	s := ws.NewServer(hub.New(), cfg)
+	return httptest.NewServer(http.HandlerFunc(s.Serve))
 }
 
 func dial(t *testing.T, srv *httptest.Server) *websocket.Conn {
@@ -179,5 +181,83 @@ func TestFrameSizeLimit(t *testing.T) {
 	defer cancel()
 	if _, _, err := c.Read(ctx); err == nil {
 		t.Fatal("expected the connection to close after an oversized frame")
+	}
+}
+
+// A socket that switches rooms (sends a second "join") must be removed from the
+// first room. Otherwise it lingers there with a closed Send channel after it
+// disconnects, and the next broadcast to that room panics the whole relay.
+func TestRoomSwitchLeavesNoGhost(t *testing.T) {
+	srv := testServer(0)
+	defer srv.Close()
+
+	keep := dial(t, srv) // stays in rA the whole time
+	defer keep.CloseNow()
+	writeJSON(t, keep, map[string]any{"t": "join", "room": "rA"})
+
+	ghost := dial(t, srv)
+	writeJSON(t, ghost, map[string]any{"t": "join", "room": "rA"}) // joins rA
+	writeJSON(t, ghost, map[string]any{"t": "join", "room": "rB"}) // then switches to rB
+	time.Sleep(100 * time.Millisecond)
+	ghost.CloseNow() // disconnect; with the bug, a closed-Send ghost stays in rA
+	time.Sleep(100 * time.Millisecond)
+
+	sender := dial(t, srv)
+	defer sender.CloseNow()
+	writeJSON(t, sender, map[string]any{"t": "join", "room": "rA"})
+	time.Sleep(50 * time.Millisecond)
+
+	// Broadcasting to rA would hit the ghost's closed channel and panic the
+	// relay under the old code; with the fix it just reaches `keep`.
+	writeJSON(t, sender, map[string]any{"t": "msg", "room": "rA", "c": "ALIVE"})
+	if got, ok := readUntilMsg(keep, time.Second); !ok || got != "ALIVE" {
+		t.Fatalf("relay should survive the switch and deliver; got %q ok=%v", got, ok)
+	}
+}
+
+// An idle socket (one that stops sending) is reaped after IdleTimeout.
+func TestIdleTimeout(t *testing.T) {
+	srv := testServerCfg(ws.Config{IdleTimeout: 200 * time.Millisecond})
+	defer srv.Close()
+
+	c := dial(t, srv)
+	defer c.CloseNow()
+	writeJSON(t, c, map[string]any{"t": "join", "room": "rI"})
+	if _, ok := readPresence(c, time.Second); !ok {
+		t.Fatal("expected a join presence frame")
+	}
+
+	// Now stay silent; the server should reap us once past IdleTimeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if _, _, err := c.Read(ctx); err == nil {
+		t.Fatal("expected the idle connection to be closed by the server")
+	}
+}
+
+// With a burst of 1 and no meaningful refill, only the first "msg" gets through;
+// the rest are dropped, never reaching peers.
+func TestMsgRateLimit(t *testing.T) {
+	srv := testServerCfg(ws.Config{MsgBurst: 1, MsgRate: 0.001})
+	defer srv.Close()
+
+	sender := dial(t, srv)
+	defer sender.CloseNow()
+	listener := dial(t, srv)
+	defer listener.CloseNow()
+
+	writeJSON(t, sender, map[string]any{"t": "join", "room": "rR"})
+	writeJSON(t, listener, map[string]any{"t": "join", "room": "rR"})
+	time.Sleep(100 * time.Millisecond)
+
+	for i := 0; i < 5; i++ {
+		writeJSON(t, sender, map[string]any{"t": "msg", "room": "rR", "c": "M"})
+	}
+
+	if _, ok := readUntilMsg(listener, time.Second); !ok {
+		t.Fatal("the first message (within the burst) should be delivered")
+	}
+	if _, ok := readUntilMsg(listener, 300*time.Millisecond); ok {
+		t.Fatal("messages beyond the burst should be dropped")
 	}
 }

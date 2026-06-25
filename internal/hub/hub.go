@@ -22,10 +22,20 @@ func New() *Hub {
 	return &Hub{rooms: make(map[string]map[*Client]struct{})}
 }
 
-// Join adds c to room and returns the new occupant count.
-func (h *Hub) Join(room string, c *Client) int {
+// Join adds c to room and returns the new occupant count. If c was already in a
+// different room (a single socket sending a second "join"), it is removed from
+// that room first — otherwise the stale reference would linger after the socket
+// closes and Send is closed, and the next broadcast to the old room would send
+// on a closed channel and panic, taking the whole relay down. When a switch
+// happens, the vacated room and its new count are returned so the caller can
+// update its presence too.
+func (h *Hub) Join(room string, c *Client) (count int, leftRoom string, leftCount int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if c.Room != "" && c.Room != room {
+		leftRoom = c.Room
+		leftCount = h.leaveLocked(c)
+	}
 	set, ok := h.rooms[room]
 	if !ok {
 		set = make(map[*Client]struct{})
@@ -33,14 +43,20 @@ func (h *Hub) Join(room string, c *Client) int {
 	}
 	set[c] = struct{}{}
 	c.Room = room
-	return len(set)
+	return len(set), leftRoom, leftCount
 }
 
 // Leave removes c from its room and returns the remaining occupant count.
-// Empty rooms are deleted so memory tracks only active conversations.
 func (h *Hub) Leave(c *Client) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	return h.leaveLocked(c)
+}
+
+// leaveLocked removes c from its current room and returns the remaining count.
+// Empty rooms are deleted so memory tracks only active conversations. The
+// caller must hold h.mu.
+func (h *Hub) leaveLocked(c *Client) int {
 	set, ok := h.rooms[c.Room]
 	if !ok {
 		return 0
