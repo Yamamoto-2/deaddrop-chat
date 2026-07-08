@@ -16,11 +16,11 @@
     "@webtui/css": "0.1.9",
     "dompurify": "^3.4.11",
     "highlight.js": "^11.11.1",
-    "markdown-it": "^14.2.0"
+    "markdown-it": "^14.3.0"
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",
     "typescript": "^6.0.3",
-    "vite": "^8.1.2"
+    "vite": "^8.1.3"
   }
 }
