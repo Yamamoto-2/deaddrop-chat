@@ -27,6 +27,10 @@ export function renderRoom(app: HTMLElement, parsed: ParsedHash): () => void {
 
   let nick = getNick() || randomNick();
   let color = getColor();
+  // On a fresh session we don't join the room until the identity modal is
+  // confirmed: no socket, no "join", no hello beacon. Otherwise peers would see
+  // a random placeholder name join, then leave, then rejoin under the real one.
+  let joined = !!getNick();
 
   const presence = h(
     "button",
@@ -38,7 +42,9 @@ export function renderRoom(app: HTMLElement, parsed: ParsedHash): () => void {
     },
     ["◍ 0"],
   );
-  const status = h("span", { class: "dd-dim" }, ["connecting…"]);
+  const status = h("span", { class: "dd-dim" }, [
+    joined ? "connecting…" : "not joined",
+  ]);
 
   // Roster: who's in the room, by name. The server only knows the raw socket
   // count (the ◍ n badge); names live in encrypted hello/bye beacons exchanged
@@ -121,10 +127,14 @@ export function renderRoom(app: HTMLElement, parsed: ParsedHash): () => void {
 
   // --- identity modal ---
   let backdrop: HTMLElement | null = null;
+  // Esc / click-outside. On the first-run modal this commits the pre-filled
+  // name instead of just closing, so there's always a confirmed identity
+  // before we join — never a silent placeholder.
+  let dismiss: () => void = closeIdentity;
   function onEsc(e: KeyboardEvent): void {
     if (e.key === "Escape" && backdrop) {
       e.stopPropagation();
-      closeIdentity();
+      dismiss();
     }
   }
   function closeIdentity(): void {
@@ -139,14 +149,20 @@ export function renderRoom(app: HTMLElement, parsed: ParsedHash): () => void {
     const ok = h("button", { type: "button", class: "dd-send" }, ["save"]);
     function save(): void {
       const v = ed.persist();
-      announce("bye"); // retire the old name from peers' rosters
+      if (joined) announce("bye"); // retire the old name from peers' rosters
       nick = v.nick;
       color = v.color;
       paintId();
-      announce("hello"); // re-announce under the new identity
+      if (joined) {
+        announce("hello"); // re-announce under the new identity
+      } else {
+        joined = true;
+        if (key) conn.connect(); // else: connect() runs once keys are derived
+      }
       closeIdentity();
     }
     ok.addEventListener("click", save);
+    dismiss = firstRun ? save : closeIdentity;
     const modal = h("div", { class: "dd-modal", "box-": "square" }, [
       h("div", { class: "dd-modal-title" }, [
         firstRun ? "set your identity" : "identity",
@@ -156,7 +172,7 @@ export function renderRoom(app: HTMLElement, parsed: ParsedHash): () => void {
     ]);
     backdrop = h("div", { class: "dd-backdrop" }, [modal]);
     backdrop.addEventListener("mousedown", (e) => {
-      if (e.target === backdrop) closeIdentity();
+      if (e.target === backdrop) dismiss();
     });
     app.append(backdrop);
     ed.focus();
@@ -219,7 +235,7 @@ export function renderRoom(app: HTMLElement, parsed: ParsedHash): () => void {
   ]).then(([id, k]) => {
     routingId = id;
     key = k;
-    conn.connect();
+    if (joined) conn.connect();
   });
 
   function onState(s: ConnState): void {
@@ -266,7 +282,7 @@ export function renderRoom(app: HTMLElement, parsed: ParsedHash): () => void {
     roster.set(rosterKey(n, c), { nick: n, color: c, last: Date.now() });
   }
   function announce(kind: "hello" | "bye"): void {
-    if (!routingId || !key) return;
+    if (!joined || !routingId || !key) return;
     if (kind === "hello") touchPeer(nick, color);
     else roster.delete(rosterKey(nick, color));
     conn.send({
