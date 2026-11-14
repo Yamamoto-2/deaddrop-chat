@@ -32,7 +32,7 @@ jobs:
       # for build tracing. Installing it afterwards puts setup-go's binary ahead
       # of CodeQL's tracer on PATH, and the build is never observed.
       - if: matrix.language == 'go'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
